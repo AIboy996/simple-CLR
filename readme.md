@@ -23,3 +23,5 @@
 监督训练|ImageNet|Linear Classification Protocol|CIFAR-100
 自监督训练|ImageNet|Linear Classification Protocol|CIFAR-100
 监督训练|CIFAR-100|直接评测|CIFAR-100
+
+运行[data/get_dataset.sh](data/get_dataset.sh)自动下载、解压缩数据集。
