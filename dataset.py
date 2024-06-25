@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms, io
@@ -15,7 +16,10 @@ class ViewGenerator:
         self.n_views = n_views
 
     def __call__(self, x):
-        return [self.base_transform(x) for _ in range(self.n_views)]
+        if self.n_views == 1:
+            return self.base_transform(x)
+        elif self.n_views > 1:
+            return [self.base_transform(x) for _ in range(self.n_views)]
 
 
 class CIFAR100(Dataset):
@@ -28,11 +32,13 @@ class CIFAR100(Dataset):
     ) -> None:
         self.data_dict = self.unpickle(os.path.join(dataset_dir, subset))
         self.data = self.data_dict[b"data"]
+        self.labels = self.data_dict[b"fine_labels"]
         self.transform = transform
         self.device = device
 
     def __getitem__(self, index):
-        img = self.data.__getitem__(index)
+        img = self.data[index]
+        label = self.labels[index]
 
         # resize test
 
@@ -40,10 +46,10 @@ class CIFAR100(Dataset):
         # plt.imshow(torch.from_numpy(img).view(3,32,32).permute(1,2,0))
         # plt.savefig('./tmp/cifar_raw.png')
 
-        img = torch.from_numpy(img).to(device=self.device).view(3, 32, 32).unsqueeze(0)
+        img = torch.from_numpy(img).to(device=self.device).view(3, 32, 32)
         if self.transform is not None:
             img = self.transform(img)
-        return img
+        return img, label
 
     def __len__(self):
         return len(self.data)
@@ -62,28 +68,53 @@ class ImageNet200(Dataset):
         self,
         dataset_dir,
         transform=None,
-        subset: Literal["train", "test", "valid"] = "train",
+        subset: Literal["train", "test", "val"] = "train",
         device="cpu",
     ) -> None:
         # load data without labels
-        self.data_dict = {"data": self.loadimages(os.path.join(dataset_dir, subset))}
-        self.data = self.data_dict["data"]
-        self.transform = transform
         self.device = device
+        self.subset = subset
+        self.transform = transform
+        self.dataset_dir = dataset_dir
+        self.data, self.labels = self.loadimages()
 
     def __getitem__(self, index):
-        img_path = self.data.__getitem__(index)
-        img = io.read_image(img_path).unsqueeze(0)
+        img_path = self.data[index]
+        label = self.labels[index]
+        # some image in the dataset is single channel(grayscale image)
+        # e.g. data/tiny-imagenet-200/train/n04356056/images/n04356056_47.JPEG
+        img = io.read_image(img_path, mode=io.ImageReadMode.RGB).to(device=self.device)
         if self.transform is not None:
             img = self.transform(img)
-        return img
+        return img, label
 
     def __len__(self):
         return len(self.data)
 
-    @staticmethod
-    def loadimages(path, pattern="**/*.JPEG"):
-        return list(Path(path).glob(pattern))
+    def loadimages(self, pattern="**/*.JPEG"):
+        dataset_dir = Path(self.dataset_dir)
+        with open(dataset_dir / "wnids.txt") as f:
+            ids = f.read().split("\n")
+        ids.remove("")
+        label_dict = dict(zip(ids, range(200)))
+        if self.subset == "train":
+            img_paths = []
+            img_labels = []
+            for file in sorted((dataset_dir / "train").glob(pattern)):
+                img_paths.append(file)
+                img_labels.append(label_dict[file.stem.split("_")[0]])
+            return img_paths, img_labels
+        elif self.subset == "test":
+            return list((dataset_dir / "test").glob(pattern)), []
+        elif self.subset == "val":
+            df = pd.read_csv(
+                dataset_dir / "val/val_annotations.txt", delimiter="\t", header=None
+            )
+            img_paths = [
+                dataset_dir / f"val/images/{file_name}" for file_name in df.iloc[:, 0]
+            ]
+            img_labels = [label_dict[class_name] for class_name in df.iloc[:, 1]]
+            return img_paths, img_labels
 
 
 class CLRDataset:
@@ -150,7 +181,6 @@ class CLRDataset:
                 device=device,
             ),
         }
-
         try:
             dataset = datasets_available[name]
         except KeyError:
@@ -160,22 +190,20 @@ class CLRDataset:
 
 
 if __name__ == "__main__":
-    dataset = CLRDataset.get_dataset(name="cifar100-train", n_views=2, device="cuda:2")
-    x = dataset[0]
     import matplotlib.pyplot as plt
 
+    dataset = CLRDataset.get_dataset(name="cifar100-train", n_views=2, device="cuda:2")
+    x, _ = dataset[0]
     fig, axes = plt.subplots(nrows=1, ncols=2)
-    axes[0].imshow(x[0][0].permute(1, 2, 0).cpu().numpy())
-    axes[1].imshow(x[1][0].permute(1, 2, 0).cpu().numpy())
+    axes[0].imshow(x[0].permute(1, 2, 0).cpu().numpy())
+    axes[1].imshow(x[1].permute(1, 2, 0).cpu().numpy())
     fig.savefig("./tmp/cifar_augmented.png")
 
     dataset = CLRDataset.get_dataset(
         name="imagenet200-valid", n_views=2, device="cuda:2"
     )
-    x = dataset[0]
-    import matplotlib.pyplot as plt
-
+    x, _ = dataset[0]
     fig, axes = plt.subplots(nrows=1, ncols=2)
-    axes[0].imshow(x[0][0].permute(1, 2, 0).cpu().numpy())
-    axes[1].imshow(x[1][0].permute(1, 2, 0).cpu().numpy())
+    axes[0].imshow(x[0].permute(1, 2, 0).cpu().numpy())
+    axes[1].imshow(x[1].permute(1, 2, 0).cpu().numpy())
     fig.savefig("./tmp/imagenet_augmented.png")

@@ -1,2 +1,4 @@
 data/cifar-100-python*
 data/tiny-imagenet-200*
+__pycache__
+runs/*
