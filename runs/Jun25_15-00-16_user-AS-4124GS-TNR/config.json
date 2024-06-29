@@ -1,0 +1,18 @@
+{
+  "dataset_name": "cifar100-train",
+  "arch": "ResNetSimCLR",
+  "trainer": "SelfSupervisedTrainer",
+  "epochs": 100,
+  "batch_size": 512,
+  "lr": 0.0003,
+  "weight_decay": 0.0001,
+  "seed": null,
+  "disable_cuda": false,
+  "fp16_precision": false,
+  "out_dim": 100,
+  "log_every_n_steps": 100,
+  "temperature": 0.07,
+  "n_views": 2,
+  "gpu_index": 4,
+  "device": "device(type='cuda')"
+}

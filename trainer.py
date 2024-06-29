@@ -37,10 +37,10 @@ class SupervisedTrainer:
 
         for epoch_counter in range(self.args.epochs):
             for images, labels in train_loader:
-                # for supervised learning, we set n-views to 1 
+                # for supervised learning, we set n-views to 1
                 images = images.to(device=self.args.device, dtype=torch.float)
                 labels = labels.to(device=self.args.device)
-                
+
                 with autocast(enabled=self.args.fp16_precision):
                     logits = self.model(images)
                     loss = self.criterion(logits, labels)
@@ -71,13 +71,21 @@ class SupervisedTrainer:
             logging.debug(
                 f"Epoch: {epoch_counter}\tLoss: {loss}\tTop1 accuracy: {top1[0]}"
             )
+            # save model for each 19 epochs
+            if epoch_counter % 19 == 0:
+                self.save_model(epoch_counter)
 
         logging.info("Training has finished.")
-        # save model checkpoints
-        checkpoint_name = "checkpoint_{:04d}.pth.tar".format(self.args.epochs)
+        self.save_model(epoch_counter)
+        logging.info(
+            f"Model checkpoint and metadata has been saved at {self.writer.log_dir}."
+        )
+
+    def save_model(self, epoch):
+        checkpoint_name = "checkpoint_{:04d}.pth.tar".format(epoch)
         save_checkpoint(
             {
-                "epoch": self.args.epochs,
+                "epoch": epoch,
                 "arch": self.args.arch,
                 "state_dict": self.model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
@@ -85,24 +93,9 @@ class SupervisedTrainer:
             is_best=False,
             filename=os.path.join(self.writer.log_dir, checkpoint_name),
         )
-        logging.info(
-            f"Model checkpoint and metadata has been saved at {self.writer.log_dir}."
-        )
 
 
-class SelfSupervisedTrainer:
-
-    def __init__(self, args, model, optimizer, scheduler):
-        self.args = args
-        self.model = model.to(self.args.device)
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.writer = SummaryWriter()
-        logging.basicConfig(
-            filename=os.path.join(self.writer.log_dir, "training.log"),
-            level=logging.DEBUG,
-        )
-        self.criterion = torch.nn.CrossEntropyLoss().to(self.args.device)
+class SelfSupervisedTrainer(SupervisedTrainer):
 
     def info_nce_loss(self, features):
 
@@ -189,20 +182,12 @@ class SelfSupervisedTrainer:
             logging.debug(
                 f"Epoch: {epoch_counter}\tLoss: {loss}\tTop1 accuracy: {top1[0]}"
             )
+            # save model for each 19 epochs
+            if epoch_counter % 19 == 0:
+                self.save_model(epoch_counter)
 
         logging.info("Training has finished.")
-        # save model checkpoints
-        checkpoint_name = "checkpoint_{:04d}.pth.tar".format(self.args.epochs)
-        save_checkpoint(
-            {
-                "epoch": self.args.epochs,
-                "arch": self.args.arch,
-                "state_dict": self.model.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-            },
-            is_best=False,
-            filename=os.path.join(self.writer.log_dir, checkpoint_name),
-        )
+        self.save_model(epoch_counter)
         logging.info(
             f"Model checkpoint and metadata has been saved at {self.writer.log_dir}."
         )

@@ -128,9 +128,7 @@ def main():
         args.device = torch.device("cpu")
         args.gpu_index = -1
 
-    dataset = CLRDataset()
-
-    train_dataset = dataset.get_dataset(
+    train_dataset = CLRDataset.get_dataset(
         args.dataset_name, args.n_views, device=args.device
     )
 
