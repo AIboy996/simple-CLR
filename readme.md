@@ -29,7 +29,7 @@ super|有监督|CIFAR-100|直接评测|CIFAR-100
 
 运行[run_train.sh](run_train.sh)可以训练上述的四个模型。
 
-允许[test.py](test.py)可以评测训练好的四个模型：
+运行[test.py](test.py)可以评测训练好的四个模型：
 ```python
 PREATRAINED_MODELS = {
     "super-transfer": [
