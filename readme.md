@@ -11,6 +11,7 @@
 
 - 模型：[ResNet-18](https://pytorch.org/vision/master/models/generated/torchvision.models.resnet18.html)（输出的特征纬度：512x512）
 - 使用的自监督学习算法：[SimCLR - A Simple Framework for Contrastive Learning of Visual Representations](https://github.com/google-research/simclr)
+- 代码实现参考：<https://github.com/sthalles/SimCLR>
 - 预训练数据集：[Tiny ImageNet 200](https://www.image-net.org/)
     - **200 classes, 600(=500+50+50) 64×64 colored images for each class**
 - 评测数据集：[CIFAR-100](https://www.cs.toronto.edu/~kriz/cifar.html)
